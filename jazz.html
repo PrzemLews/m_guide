@@ -258,7 +258,7 @@ input[type=range]{accent-color:var(--ink);width:150px}
   <section class="hero">
     <nav class="modnav" aria-label="Learning pages">
       <a class="mod" href="index.html"><b>Chords</b><small>Notes, scales, chords, harmony</small></a>
-      <span class="mod soon" aria-disabled="true"><b>Melodies</b><small>Coming soon</small></span>
+      <a class="mod" href="melodies.html"><b>Melodies</b><small>Hooks that stick</small></a>
       <a class="mod" href="basslines.html"><b>Basslines</b><small>Patterns and grooves</small></a>
       <a class="mod" href="synth.html"><b>Synth</b><small>How sound is made</small></a>
       <a class="mod cur" href="jazz.html" aria-current="page"><b>Jazz</b><small>A year of jazz piano practice</small></a>
@@ -644,183 +644,216 @@ input[type=range]{accent-color:var(--ink);width:150px}
       done(beats){ ev.sort((a, b) => a.b - b.b); chords.forEach((c, i) => c.i = i); return {ev, chords, beats}; }
     };
   }
-  const rhBase = pc => above(pc, 55);
-  const ORD = ['root position', '1st inversion', '2nd inversion', 'root, an octave up'];
+  const ORD = ['root position', '1st inversion', '2nd inversion', 'root position, an octave up'];
+  // the lesson sheets are written in one key (C, or F for the advanced chords). Move them to another key
+  // by the nearest shift, then by whole octaves until everything fits the keyboard.
+  const nearShift = (key, home) => { const s = mod12(key - home); return s > 6 ? s - 12 : s; };
+  function moved(q, beats, s){
+    const d = q.done(beats), all = d.ev.flatMap(e => e.m);
+    let x = s;
+    while (Math.max(...all) + x > 88) x -= 12;
+    if (Math.min(...all) + x < 36 && Math.max(...all) + x + 12 <= 88) x += 12;
+    // a wide example can still poke out at one end: move just those notes by an octave
+    d.ev.forEach(e => e.m = e.m.map(m => { m += x; return m < 36 ? m + 12 : m > 88 ? m - 12 : m; }));
+    return d;
+  }
+  // Charleston rhythm: a short chord on beat 1, then the next one on the "and" of 2, held to the end of the bar
+  function charl(q, b, a, z, h, v = 0.42){ q.add(b, 0.45, a, h, v); q.add(b + 1.5, 2.4, z, h, v - 0.04); }
+  const acc = i => i % 2 ? 0.5 : 0.64;
 
   const B = {
-    // 1 · beginner: scale run over its diatonic triads, left hand in the Charleston rhythm
+    // 1 · beginner: the scale an octave up and down each bar, the key's triads in the Charleston rhythm, two a bar
     scalesB(key, o){
       const minor = o.mode === 'minor', S = minor ? SC.aeolian : SC.ionian, names = spell7(key, S);
       const tq = minor ? ['m','dim','maj','m','m','maj','maj'] : ['maj','m','m','maj','maj','m','dim'];
-      const q = seq(), base = rhBase(key);
-      [0,1,2,3,4,5,6,7,6,5,4,3,2,1,0].forEach((d, bar) => {
-        const b = bar * 4, rpc = mod12(key + deg(S, d)), tri = QUAL[tq[d % 7]].iv.map(x => above(rpc, 43) + x);
-        q.add(b, 0.75, tri, 'L', 0.42); q.add(b + 1.5, 2.3, tri, 'L', 0.38);
-        [0,1,2,3,4,3,2,1].forEach((s, i) => q.add(b + i*0.5, 0.48, base + deg(S, d + s), 'R', i % 2 ? 0.5 : 0.66));
-        const sym = names[d % 7] + QUAL[tq[d % 7]].s, rn = minor ? ['i','ii°','III','iv','v','VI','VII'] : ['I','ii','iii','IV','V','vi','vii°'];
-        q.chord(b, 4, sym, rn[d % 7], `${sym} in the left hand, a run up from ${names[d % 7]} in the right.`);
-      });
-      return q.done(60);
+      const rn = minor ? ['i','ii°','III','iv','v','VI','VII'] : ['I','ii','iii','IV','V','vi','vii°'];
+      const q = seq(), DEGS = [0,1,2,3,4,5,6,7, 7,6,5,4,3,2,1,0], tri = d => [0,2,4].map(k => 48 + deg(S, d + k));
+      for (let bar = 0; bar < 8; bar++){
+        const b = bar * 4, d1 = DEGS[bar * 2], d2 = DEGS[bar * 2 + 1], up = bar % 2 === 0;
+        charl(q, b, tri(d1), tri(d2), 'L');
+        // up from the root to the octave, or down from the 7th to the 7th below
+        for (let i = 0; i < 8; i++) q.add(b + i * 0.5, 0.48, 72 + deg(S, up ? i : 6 - i), 'R', acc(i));
+        [d1, d2].forEach((d, j) => {
+          const sym = names[d % 7] + QUAL[tq[d % 7]].s;
+          q.chord(b + j * 2, 2, sym, rn[d % 7], `${sym} in the left hand${j ? ', coming in early on the "and" of 2' : ''}. Right hand: the scale ${up ? 'up' : 'down'}.`);
+        });
+      }
+      return moved(q, 32, nearShift(key, 0));
     },
-    // 1 · intermediate: the seven modes on one root, one altered note at a time
+    // 1 · intermediate: the modes on one root, a 7th chord in the Charleston rhythm under each
     scalesI(key){
-      const q = seq(), base = rhBase(key), root = pcName(key, key);
+      const q = seq(), root = pcName(key, key);
       const MODES = [
-        ['ionian', 1, 'maj7', 'Ionian', 'the major scale'], ['mixolydian', 0, '7', 'Mixolydian', 'lower the 7th'],
-        ['dorian', 1, 'm7', 'Dorian', 'lower the 3rd too'], ['aeolian', 0, 'm7', 'Aeolian', 'lower the 6th too'],
-        ['phrygian', 1, 'm7', 'Phrygian', 'lower the 2nd too'], ['locrian', 0, 'm7b5', 'Locrian', 'lower the 5th too'],
-        ['lydian', 1, 'maj7', 'Lydian', 'major scale with a raised 4th'], ['lydian', 0, 'maj7', 'Lydian', 'and back down']
+        ['ionian', 'maj7', 'Ionian', 'the major scale'], ['mixolydian', '7', 'Mixolydian', 'lower the 7th'],
+        ['dorian', 'm7', 'Dorian', 'lower the 3rd too'], ['aeolian', 'm7', 'Aeolian', 'lower the 6th too'],
+        ['phrygian', 'm7', 'Phrygian', 'lower the 2nd too'], ['locrian', 'm7b5', 'Locrian', 'lower the 5th too'],
+        ['lydian', 'maj7', 'Lydian', 'the major scale with a raised 4th'], ['lydian', 'maj7', 'Lydian', 'and back down']
       ];
-      MODES.forEach(([mode, up, cq, name, how], bar) => {
-        const b = bar * 4, S = SC[mode], ns = spell7(key, S);
-        q.add(b, 3.9, QUAL[cq].iv.map(x => above(key, 43) + x), 'L', 0.38);
-        for (let i = 0; i < 8; i++) q.add(b + i*0.5, 0.48, base + deg(S, up ? i : 7 - i), 'R', i % 2 ? 0.5 : 0.66);
-        q.chord(b, 4, root + (mode === 'lydian' ? 'maj7♯11' : QUAL[cq].s), name, `${root} ${name}: ${how}. ${ns.join(' ')}`);
+      MODES.forEach(([mode, cq, name, how], bar) => {
+        const b = bar * 4, S = SC[mode], ns = spell7(key, S), ch = QUAL[cq].iv.map(x => 48 + x);
+        charl(q, b, ch, ch, 'L');
+        if (bar < 7) for (let i = 0; i < 8; i++) q.add(b + i * 0.5, 0.48, 72 + deg(S, bar % 2 ? 6 - i : i), 'R', acc(i));
+        else { [6,5,4,3,2,1].forEach((d, i) => q.add(b + i * 0.5, 0.48, 72 + deg(S, d), 'R', acc(i))); q.add(b + 3, 0.95, 72, 'R', 0.62); }
+        const sym = root + QUAL[cq].s;
+        q.chord(b, 4, sym, name, `${root} ${name}: ${how}. ${ns.join(' ')}`);
       });
-      return q.done(32);
+      return moved(q, 32, nearShift(key, 0));
     },
-    // 1 · advanced: three altered scales over V7, each resolving to I with the same line
+    // 1 · advanced: each altered scale up over V7, then the same line resolving to I
     scalesA(key){
-      const q = seq(), r = key, I = mod12(key + 5), V = pcName(r, I) + '7', Iname = pcName(I, I);
-      [['wholetone','Whole tone'], ['domdim','Dominant diminished'], ['altered','Altered']].forEach(([k, name], i) => {
-        const b = i * 8, S = SC[k], base = rhBase(r);
-        q.add(b, 3.9, [0,4,10].map(x => above(r, 43) + x), 'L', 0.4);
-        for (let j = 0; j < 8; j++) q.add(b + j*0.5, 0.48, base + deg(S, j), 'R', j % 2 ? 0.5 : 0.66);
-        q.chord(b, 4, V, name, `${V} with the ${name.toLowerCase()} scale: ${S.map(x => pcName(r + x, I)).join(' ')}`);
-        const t = above(I, 60);
-        q.add(b + 4, 3.9, [0,4,11].map(x => above(I, 43) + x), 'L', 0.4);
-        [[0,4],[0.5,2],[1,0],[1.5,-1]].forEach(([bb, x]) => q.add(b + 4 + bb, 0.48, t + x, 'R', 0.62));
-        q.add(b + 6, 1.9, t, 'R', 0.6);
-        q.chord(b + 4, 4, Iname + 'maj7', 'resolve', `Resolve to ${Iname}maj7 with the same short line every time.`);
+      const q = seq(), I = mod12(key + 5), V = pcName(key, I) + '7', Iname = pcName(I, I);
+      const RUNS = [
+        ['wholetone', 'Whole tone', [60,62,64,66,68,70,72,70]],
+        ['domdim', 'Dominant diminished', [60,61,63,64,66,67,69,70]],
+        ['altered', 'Altered', [60,61,63,64,66,68,70,72]]
+      ];
+      const RES = [69,70,72,74,76,79];
+      RUNS.forEach(([k, name, run], i) => {
+        const b = i * 8;
+        charl(q, b, [48,52,58], [48,52,58], 'L');
+        run.forEach((m, j) => q.add(b + j * 0.5, 0.48, m, 'R', acc(j)));
+        q.chord(b, 4, V, name, `${V} with the ${name.toLowerCase()} scale: ${SC[k].map(x => pcName(key + x, I)).join(' ')}`);
+        charl(q, b + 4, [53,57,60], [53,57,60], 'L');
+        RES.forEach((m, j) => q.add(b + 4 + j * 0.5, 0.48, m, 'R', acc(j)));
+        q.add(b + 7, 0.95, 77, 'R', 0.62);
+        q.chord(b + 4, 4, Iname, 'resolve', `Resolve to ${Iname} with the same line every time, up from its 3rd.`);
       });
-      return q.done(24);
+      return moved(q, 24, nearShift(key, 0));
     },
-    // 2 · beginner: triad inversions, broken and swung, over a Charleston bass
+    // 2 · beginner: the left hand climbs through the inversions and back in the Charleston rhythm; the right hand breaks them up
     chordsB(key, o){
-      const minor = o.mode === 'minor', q = seq(), base = above(key, 55), name = pcName(key, minor ? key + 3 : key) + (minor ? 'm' : '');
-      const third = minor ? 3 : 4, INV = [[0,third,7],[third,7,12],[7,12,12+third],[12,12+third,19]];
-      [0,1,2,3,2,1,0].forEach((inv, bar) => {
-        const b = bar * 4, n = INV[inv].map(x => base + x), lh = [above(key, 36), above(key, 36) + 7];
-        q.add(b, 0.75, lh, 'L', 0.45); q.add(b + 1.5, 2.3, lh, 'L', 0.4);
-        q.add(b, 0.48, n[0], 'R', 0.66); q.add(b + 0.5, 0.48, n[1], 'R', 0.5); q.add(b + 1, 0.48, n[2], 'R', 0.62);
-        q.add(b + 1.5, 2.4, n, 'R', 0.55);
-        q.chord(b, 4, name, ORD[inv], `${name}, ${ORD[inv]}: ${n.map(m => pcName(m, key)).join(' ')}`);
-      });
-      return q.done(28);
+      const minor = o.mode === 'minor', q = seq(), t3 = minor ? 3 : 4, sp = minor ? key + 3 : key;
+      const R = pcName(key, sp) + (minor ? 'm' : ''), third = pcName(key + t3, sp), fifth = pcName(key + 7, sp);
+      const INV = [[0,t3,7], [t3,7,12], [7,12,12+t3], [12,12+t3,19]];
+      const LH = [[0,1], [2,3], [3,2], [1,0]];
+      const RH = [[0,t3,7,t3,7,12,7], [7,12,12+t3,12,12+t3,19,12+t3], [19,12+t3,12,12+t3,12,7,12], [12,7,t3,7,t3,0,t3]];
+      const SYM = inv => [R, `${R}/${third}`, `${R}/${fifth}`, R][inv];
+      for (let bar = 0; bar < 4; bar++){
+        const b = bar * 4, [i1, i2] = LH[bar], n = i => INV[i].map(x => 48 + x);
+        charl(q, b, n(i1), n(i2), 'L');
+        RH[bar].forEach((x, j) => q.add(b + 0.5 + j * 0.5, 0.48, 60 + x, 'R', j % 2 ? 0.64 : 0.5));
+        [i1, i2].forEach((inv, j) => q.chord(b + j * 2, 2, SYM(inv), ORD[inv], `${SYM(inv)}, ${ORD[inv]}: ${n(inv).map(m => pcName(m, sp)).join(' ')}`));
+      }
+      return moved(q, 16, nearShift(key, 0));
     },
-    // 2 · intermediate: inverted sevenths around the circle of fifths, or the diatonic sevenths in triplets
+    // 2 · intermediate: inverted 7ths down the circle of fifths, or the diatonic 7ths broken into triplets
     chordsI(key, o){
       const q = seq();
       if (o.ex === 'diatonic'){
-        const S = SC.ionian, names = spell7(key, S), cq = ['maj7','m7','m7','maj7','7','m7','m7b5'], base = above(key, 52);
-        for (let d = 0; d < 8; d++){
-          const b = d * 4, t = [0,2,4,6].map(s => base + deg(S, d + s)), rpc = mod12(key + deg(S, d));
-          const lh = [above(rpc, 36), above(rpc, 36) + QUAL[cq[d % 7]].iv[3]];
-          q.add(b, 0.75, lh, 'L', 0.42); q.add(b + 1.5, 2.3, lh, 'L', 0.38);
-          for (let beat = 0; beat < 4; beat++){
-            const pat = beat % 2 ? [t[3], t[2], t[1]] : [t[0], t[1], t[2]];
-            pat.forEach((m, j) => q.add(b + beat + j/3, 0.32, m, 'R', j ? 0.5 : 0.64));
-          }
-          const sym = names[d % 7] + QUAL[cq[d % 7]].s;
-          q.chord(b, 4, sym, ['I','ii','iii','IV','V','vi','vii'][d % 7], `${sym}: triplets up 1–3–5, then down 7–5–3.`);
+        const S = SC.ionian, names = spell7(key, S), cq = ['maj7','m7','m7','maj7','7','m7','m7b5'];
+        const DEGS = [0,1,2,3,4,5,6,7, 7,6,5,4,3,2,1,0], ch = (d, lo) => [0,2,4,6].map(k => lo + deg(S, d + k));
+        for (let bar = 0; bar < 8; bar++){
+          const b = bar * 4, up = bar < 4, pair = [DEGS[bar * 2], DEGS[bar * 2 + 1]];
+          // Charleston in triplets: the second chord comes in on the last triplet of beat 2
+          q.add(b, 0.3, ch(pair[0], 48), 'L', 0.42); q.add(b + 5/3, 2.3, ch(pair[1], 48), 'L', 0.38);
+          pair.forEach((d, j) => {
+            const t = ch(d, 60), bb = b + j * 2, last = (bar === 3 || bar === 7) && j === 1;
+            const pat = up ? [t[0], t[1], t[2], t[3], t[2], t[1]] : [t[3], t[2], t[1], t[0], t[1], t[2]];
+            if (last){ pat.slice(0, 3).forEach((m, k) => q.add(bb + k/3, 0.3, m, 'R', k ? 0.5 : 0.64)); q.add(bb + 1, 0.95, up ? t[3] : t[0], 'R', 0.62); }
+            else pat.forEach((m, k) => q.add(bb + k/3, 0.3, m, 'R', k % 3 ? 0.5 : 0.64));
+            const sym = names[d % 7] + QUAL[cq[d % 7]].s;
+            q.chord(bb, 2, sym, ['I','ii','iii','IV','V','vi','vii'][d % 7], `${sym}: triplets ${up ? '1–3–5, then 7–5–3' : '7–5–3, then 1–3–5'}.`);
+          });
         }
-        return q.done(32);
+        return moved(q, 32, nearShift(key, 0));
       }
-      const iv = QUAL[o.q].iv; let prev = null;
-      for (let i = 0; i < 12; i++){
-        const r = mod12(key + 5 * i), b = i * 2, v = leadRot(iv.map(x => mod12(r + x)), prev, 53, 66);
-        q.add(b, 1.9, above(r, 36), 'L', 0.45); q.add(b, 1.9, v, 'R', 0.55); prev = v;
-        q.chord(b, 2, KEY_NAMES[r] + QUAL[o.q].s, null, `Down a 5th to ${KEY_NAMES[r]}${QUAL[o.q].s}, in the inversion closest to the last chord.`);
-      }
-      return q.done(24);
-    },
-    // 2 · advanced: ii–V–I with extensions and alterations, three times, each starting higher
-    chordsA(key){
-      const q = seq(), names = spell7(key, SC.ionian), ii = mod12(key + 2), V = mod12(key + 7);
-      const CH = [
-        [ii, [3,7,10,14,17], 10, names[1] + 'm11', '9 and 11 added'],
-        [V, [4,10,13,15,20], 10, names[4] + '7(♭9 ♯9 ♭13)', 'altered: ♭9, ♯9, ♭13'],
-        [key, [4,7,11,14,21], 11, names[0] + 'maj13', '9 and 13 added']
-      ];
-      let prev = null, floor = 48;
-      for (let p = 0; p < 3; p++){
-        CH.forEach(([r, rel, sev, sym, sub], j) => {
-          const b = (p * 3 + j) * 4, pcs = rel.map(x => mod12(r + x));
-          let v;
-          if (j === 0){ v = stackUp(rotations(pcs)[p], floor); while (v[v.length - 1] > 88) v = v.map(x => x - 12); floor = v[0] + 1; }
-          else v = leadRot(pcs, prev, Math.max(46, prev[0] - 8), prev[0] + 8);
-          prev = v;
-          q.add(b, 3.9, [above(r, 36), above(r, 36) + sev], 'L', 0.42); q.add(b, 3.9, v, 'R', 0.5);
-          q.chord(b, 4, sym, sub, `${sym}: ${v.map(m => pcName(m, key)).join(' ')} in the right hand${p ? ', starting higher' : ''}.`);
+      // root position and 2nd inversion take turns, so the bottom note only steps down a whole step every two chords
+      const iv = QUAL[o.q].iv, inv2 = [iv[2] - 12, iv[3] - 12, 0, iv[1]];
+      for (let i = 0; i < 12; i += 2){
+        const b = i * 2, rA = 60 - i, rB = rA + 5;
+        const A = iv.map(x => rA + x), Bv = inv2.map(x => rB + x);
+        charl(q, b, A, Bv, 'L'); charl(q, b, A.map(x => x + 12), Bv.map(x => x + 12), 'R', 0.46);
+        [[i, 'root position'], [i + 1, '2nd inversion']].forEach(([k, inv], j) => {
+          const sym = KEY_NAMES[mod12(key + 5 * k)] + QUAL[o.q].s;
+          q.chord(b + j * 2, 2, sym, inv, `${sym} in ${inv}, both hands. ${j ? 'Its 5th is on the bottom, the note you just had.' : 'Next, down a 5th.'}`);
         });
       }
-      return q.done(36);
+      return moved(q, 24, nearShift(key, 0));
     },
-    // 3 · beginner: ii–V–I with closed, then open, chord shells
-    voicingsB(key){
+    // 2 · advanced: ii–V–I with extensions and alterations, the melody starting on the 11th, then the 7th, then the 9th of the ii chord
+    chordsA(key){
       const q = seq(), names = spell7(key, SC.ionian);
-      const CH = [[mod12(key + 2), 'm7', names[1] + 'm7', 2], [mod12(key + 7), '7', names[4] + '7', 2], [key, 'maj7', names[0] + 'maj7', 4]];
+      const SYMS = [names[1] + 'm11', names[4] + '7(♭13 ♯9)', names[4] + '7(♯11 ♭9)', names[0] + 'maj13'];
+      const AT = [[0, 2], [2, 1], [3, 1], [4, 4]];
+      // in F, as on the lesson sheet: [left hand, right hand] for each chord
+      const EX = [
+        ['11th', [[55,58], [62,65,69,72]], [[48,52,58], [63,68,72]], [[48,52,58], [61,66,70]], [[53,60], [62,64,67,69]]],
+        ['7th', [[55,58,65], [69,72,77]], [[48,52,58], [68,72,75]], [[48,52,58], [66,70,73]], [[53,60], [62,64,67,69,72]]],
+        ['9th', [[55,58,65], [72,74,77,81]], [[48,52,58], [72,75,80]], [[48,52,58], [70,73,78]], [[53,57,64], [69,72,74,76,79]]]
+      ];
+      const s = nearShift(key, 5);
+      EX.forEach(([top, ...chords], p) => chords.forEach(([lh, rh], j) => {
+        const b = p * 8 + AT[j][0], d = AT[j][1];
+        q.add(b, d - 0.1, lh, 'L', 0.42); q.add(b, d - 0.1, rh, 'R', 0.5);
+        q.chord(b, d, SYMS[j], j ? null : `melody on the ${top}`, `${SYMS[j]}: ${[...lh, ...rh].map(m => pcName(m + s, key)).join(' ')}`);
+      }));
+      return moved(q, 24, s);
+    },
+    // 3 · beginner: ii–V–I with two notes in the left hand, then the root alone with the 3rd and 7th in the right
+    voicingsB(key){
+      const q = seq(), names = spell7(key, SC.ionian), syms = [names[1] + 'm7', names[4] + '7', names[0] + 'maj7'];
+      const PASSES = [
+        ['closed', 'Root and 3rd (or 7th) in the left hand, the other one in the right.', [[[50,53], [60]], [[43,53], [59]], [[48,52], [59]]]],
+        ['open', 'Root alone in the left hand, the 7th and 3rd in the right.', [[[50], [60,65]], [[43], [59,65]], [[48], [59,64]]]]
+      ];
       let b = 0;
-      ['closed', 'open'].forEach(kind => CH.forEach(([r, cq, sym, d]) => {
-        const iv = QUAL[cq].iv;
-        if (kind === 'closed'){
-          const root = above(r, 43), lh = [root, root + iv[1]];
-          q.add(b, d - 0.1, lh, 'L', 0.48); q.add(b, d - 0.1, above(mod12(r + iv[3]), lh[1] + 1), 'R', 0.55);
-          q.chord(b, d, sym, 'closed', `Closed shell: root and 3rd in the left hand, the 7th in the right.`);
-        } else {
-          const s7 = above(mod12(r + iv[3]), 55);
-          q.add(b, d - 0.1, above(r, 36), 'L', 0.5); q.add(b, d - 0.1, [s7, above(mod12(r + iv[1]), s7 + 1)], 'R', 0.55);
-          q.chord(b, d, sym, 'open', `Open shell: root in the left hand, 7th and 3rd spread out in the right.`);
-        }
+      PASSES.forEach(([kind, how, chords]) => chords.forEach(([lh, rh], j) => {
+        const d = j === 2 ? 4 : 2;
+        q.add(b, d - 0.1, lh, 'L', 0.48); q.add(b, d - 0.1, rh, 'R', 0.55);
+        q.chord(b, d, syms[j], kind === 'closed' ? 'two in the left' : 'root alone', how);
         b += d;
       }));
-      return q.done(16);
+      return moved(q, 16, nearShift(key, 0));
     },
-    // 3 · intermediate: rootless A/B voicings on ii–V–I; or left-hand voicings under the scale
+    // 3 · intermediate: rootless A/B voicings on ii–V–I–I6, over the root or under the scale
     voicingsI(key, o){
-      const q = seq(), names = spell7(key, SC.ionian), S = SC.ionian;
-      const CH = [[mod12(key + 2), 'm7', names[1] + 'm9'], [mod12(key + 7), '7', names[4] + '13'], [key, 'maj7', names[0] + 'maj9'], [key, '6', names[0] + '6/9']];
+      const q = seq(), names = spell7(key, SC.ionian), s = nearShift(key, 0);
+      const CH = [['m7', names[1] + 'm9'], ['7', names[4] + '13'], ['maj7', names[0] + 'maj9'], ['6', names[0] + '6/9']];
+      // where each shape sits on the sheet: the root it is built on, in C
+      const ROOT = {A:[50,55,48,48], B:[50,43,48,48]}, BASS = [38,43,36,36];
       const passes = o.ex === 'scale' ? [['B','A','B','B'], ['A','B','A','A']] : [['A','B','A','A'], ['B','A','B','B']];
-      let prev = null;
-      passes.forEach((shapes, p) => CH.forEach(([r, cq, sym], j) => {
-        const b = (p * 4 + j) * 2, v = placeShape(r, ROOTLESS[cq][shapes[j]], 47, 58, prev); prev = v;
-        q.add(b, 1.9, v, 'L', 0.48);
-        if (o.bass === 'on') q.add(b, 1.9, above(r, 36), 'B', 0.55);
-        q.chord(b, 2, sym, shapes[j] + ' voicing', `${sym}, ${shapes[j]} voicing: ${v.map(m => pcName(m, key)).join(' ')}`);
-        if (o.ex === 'scale') [0, 1].forEach(x => { const s = j * 2 + x; q.add(b + x, 0.95, above(key, 60) + deg(S, p ? 7 - s : s), 'R', 0.6); });
+      passes.forEach((shapes, p) => CH.forEach(([cq, sym], j) => {
+        const b = (p * 4 + j) * 2, v = ROOTLESS[cq][shapes[j]].map(x => ROOT[shapes[j]][j] + x);
+        if (o.ex === 'scale') q.add(b, 1.9, v, 'L', 0.46);
+        else { q.add(b, 1.9, v, 'R', 0.48); if (o.bass === 'on') q.add(b, 1.9, BASS[j], 'L', 0.55); }
+        q.chord(b, 2, sym, shapes[j] + ' voicing', `${sym}, ${shapes[j]} voicing: ${v.map(m => pcName(m + s, key)).join(' ')}`);
       }));
-      return q.done(16);
-    },
-    // 3 · advanced: harmonize each scale note with a chord built down in 4ths
-    voicingsA(key, o){
-      const q = seq(), mode = {maj7:'ionian', m7:'dorian', '7':'mixolydian'}[o.q], S = SC[mode], names = spell7(key, S);
-      const pcs = S.map(x => mod12(key + x)), avoid = o.q === 'm7' ? -1 : mod12(key + 5), root = names[0];
-      const top = above(key, 65);
-      [0,1,2,3,4,5,6,7,6,5,4,3,2,1,0].forEach((d, i) => {
-        const b = i * 2, mel = top + deg(S, d), melIsAvoid = mod12(mel) === avoid, v = [mel];
-        for (let n = 0; n < 3; n++){
-          const cur = v[v.length - 1];
-          let pick = null;
-          for (const st of [5, 6, 4, 3]){
-            const c = cur - st, pc = mod12(c);
-            if (!pcs.includes(pc) || (pc === avoid && !melIsAvoid) || v.some(x => mod12(x - c) === 1)) continue;
-            pick = c; break;
-          }
-          v.push(pick == null ? cur - 5 : pick);
-        }
-        const useII = melIsAvoid && o.q === 'maj7', br = useII ? mod12(key + 2) : key;
-        const sym = useII ? names[1] + 'm11' : root + (o.q === '7' && melIsAvoid ? '7sus' : QUAL[o.q].s);
-        q.add(b, i === 14 ? 3.9 : 1.9, above(br, 36), 'L', 0.5); q.add(b, i === 14 ? 3.9 : 1.9, v, 'R', 0.5);
-        q.chord(b, i === 14 ? 4 : 2, sym, names[d % 7] + ' on top', `${names[d % 7]} on top: ${v.slice().reverse().map(m => pcName(m, key)).join(' ')}${useII ? ' (played as a ' + sym + ' shape)' : ''}`);
+      // the scale an octave up in 8th notes, and back down to the root
+      if (o.ex === 'scale') [0, 8].forEach(b => {
+        for (let i = 0; i < 8; i++) q.add(b + i * 0.5, 0.48, 72 + deg(SC.ionian, i), 'R', acc(i));
+        for (let i = 0; i < 6; i++) q.add(b + 4 + i * 0.5, 0.48, 72 + deg(SC.ionian, 6 - i), 'R', acc(i));
+        q.add(b + 7, 0.95, 72, 'R', 0.62);
       });
-      return q.done(32);
+      return moved(q, 16, s);
+    },
+    // 3 · advanced: a quartal voicing under each note of the scale, as on the lesson sheet
+    voicingsA(key, o){
+      const q = seq(), S = SC[{maj7:'ionian', m7:'dorian', '7':'mixolydian'}[o.q]], names = spell7(key, S), s = nearShift(key, 0);
+      const sym = names[0] + QUAL[o.q].s;
+      for (let i = 0; i < 8; i++){
+        const [lh, rh] = QUARTAL[o.q][i], top = rh[rh.length - 1];
+        q.add(i, 0.9, lh, 'L', 0.46); q.add(i, 0.9, rh, 'R', 0.5);
+        q.chord(i, 1, sym, names[i % 7] + ' on top', `${names[i % 7]} on top: ${[...lh, ...rh].map(m => pcName(m + s, key)).join(' ')}`);
+      }
+      return moved(q, 8, s);
     }
+  };
+  // quartal voicings from the lesson sheet, in C: [left hand, right hand], one for each note of the scale on top
+  const QUARTAL = {
+    maj7:[[[52,57],[62,67,72]], [[55,60],[64,69,74]], [[57,62],[67,72,76]], [[57,62],[67,72,77]], [[60,64],[69,74,79]], [[62,67],[72,76,81]], [[64,69],[74,79,83]], [[64,69],[74,79,84]]],
+    m7:[[[53,58],[63,67,72]], [[53,58],[63,67,74]], [[55,60],[65,70,75]], [[58,63],[67,72,77]], [[60,65],[70,75,79]], [[62,67],[72,77,81]], [[63,67],[72,77,82]], [[65,70],[75,79,84]]],
+    '7':[[[52,58],[62,67,72]], [[52,58],[64,69,74]], [[58,64],[69,74,76]], [[57,62],[67,72,77]], [[58,64],[69,74,79]], [[58,64],[69,74,81]], [[64,70],[74,79,82]], [[64,70],[74,79,84]]]
   };
 
   // ---------- Lead-sheet progressions ----------
   const PROGS = [
+    // the lesson's own example, with its melody: [beat, midi, beats]
+    {k:'gone', name:"After You've Gone (the lesson's example)", key:0, s:'Fmaj7 | Fm6 | Cmaj7 | A7 | D7 | G7 | Cmaj7 | C7', shapes:'AAAABAAA',
+      mel:[[0,69,.5],[.5,72,.5],[1,74,.5],[1.5,76,2.5], [4.5,74,.5],[5,76,.5],[5.5,74,.5],[6,76,.5],[6.5,74,1.5],
+        [8,64,.5],[8.5,67,.5],[9,69,.5],[9.5,71,2.5], [12.5,69,.5],[13,71,.5],[13.5,69,.5],[14,71,.5],[14.5,69,1.5],
+        [16,69,.5],[16.5,76,1],[17.5,76,2.5], [20,69,.5],[20.5,74,1],[21.5,74,2.5],
+        [24.5,67,.5],[25,69,.5],[25.5,67,.5],[26,71,.5],[26.5,67,.5],[27,69,.5],[27.5,67,.5], [28,72,.5],[28.5,64,1],[29.5,67,2.5]]},
     {k:'ii-V-I', name:'ii–V–I in C', key:0, s:'Dm7 | G7 | Cmaj7 | Cmaj7'},
-    {k:'gone', name:"After You've Gone, opening changes", key:5, s:'Fmaj7 | Fm6 | Cmaj7 | A7 | D7 | G7 | Cmaj7 | C7'},
     {k:'autumn', name:'Autumn Leaves, A section changes', key:7, s:'Am7 | D7 | Gmaj7 | Cmaj7 | F♯m7♭5 | B7 | Em7 | Em7'},
     {k:'fly', name:'Fly Me to the Moon, opening changes', key:0, s:'Am7 | Dm7 | G7 | Cmaj7 | Fmaj7 | Bm7♭5 | E7 | Am7 A7'},
     {k:'rhythm', name:'Rhythm changes, A section', key:10, s:'B♭maj7 Gm7 | Cm7 F7 | B♭maj7 Gm7 | Cm7 F7'},
@@ -852,18 +885,27 @@ input[type=range]{accent-color:var(--ink);width:150px}
     const q = seq(), flat = bars.flatMap((bar, bi) => bar.map((c, j) => ({...c, b:bi*4 + j*(4/bar.length), d:4/bar.length})));
     let prev = null, pb = null;
     const nearB = (pc, p) => { let m = above(pc, 36); if (p != null) while (m + 12 <= 57 && Math.abs(m + 12 - p) < Math.abs(m - p)) m += 12; return m; };
+    // a chord that fills the bar comes in the Charleston rhythm, a shorter one once
+    const hit = (b, n, m, h, v) => { if (n >= 4){ q.add(b, 0.45, m, h, v); q.add(b + 1.5, 2.4, m, h, v - 0.04); } else q.add(b, n - 0.1, m, h, v); };
     flat.forEach((c, i) => {
       const iv = QUAL[c.q].iv, n = c.d, b = c.b, nx = flat[(i + 1) % flat.length];
       if (style === 'b'){
-        const s7 = above(mod12(c.pc + iv[3]), 55);
-        q.add(b, n - 0.1, above(c.pc, 36), 'L', 0.5); q.add(b, n - 0.1, [s7, above(mod12(c.pc + iv[1]), s7 + 1)], 'R', 0.5);
-        q.chord(b, n, c.sym, 'open shell', `${c.sym}: root in the left hand, 7th and 3rd above. Your melody goes on top.`);
+        // the 3rd and 7th as a pair low in the middle of the keyboard: the lower one joins the root in the left hand, the upper one sits under the melody
+        const g = [mod12(c.pc + iv[1]), mod12(c.pc + iv[3])], opts = [];
+        [g, [g[1], g[0]]].forEach(([lo, up]) => { const a = above(lo, 58), z = above(up, a + 1); if (a <= 64 && z <= 70) opts.push([a, z]); });
+        const pair = opts.sort((x, y) => (prev ? cost(x, prev) - cost(y, prev) : x[1] - y[1]))[0] || [above(g[0], 58), above(g[1], above(g[0], 58) + 1)];
+        prev = pair;
+        let r = above(c.pc, 48); while (r >= pair[0]) r -= 12;
+        const top = iv[3] === 9 ? '6th' : '7th', tone = mod12(pair[0]) === g[0] ? '3rd' : top;
+        hit(b, n, [r, pair[0]], 'L', 0.48); hit(b, n, pair[1], 'R', 0.46);
+        q.chord(b, n, c.sym, `root + ${tone}`, `${c.sym}: root and ${tone} in the left hand, the ${tone === '3rd' ? top : '3rd'} in the right, under the melody.`);
       } else if (style === 'i'){
-        const sh = ROOTLESS[c.q], A = placeShape(c.pc, sh.A, 47, 58, prev), Bv = placeShape(c.pc, sh.B, 47, 58, prev);
-        const useA = !prev || cost(A, prev) <= cost(Bv, prev), v = useA ? A : Bv; prev = v;
-        if (n >= 4){ q.add(b, 0.7, v, 'L', 0.48); q.add(b + 1.5, 2.3, v, 'L', 0.42); } else q.add(b, n - 0.1, v, 'L', 0.48);
-        if (o.bass === 'on') q.add(b, n - 0.1, above(c.pc, 36), 'B', 0.55);
-        q.chord(b, n, c.sym, (useA ? 'A' : 'B') + ' voicing', `${c.sym}, ${useA ? 'A' : 'B'} voicing: ${v.map(m => pcName(m, c.pc)).join(' ')}`);
+        // stride: the root low on beat 1, then a rootless voicing in the middle on the "and" of 2
+        const sh = ROOTLESS[c.q], A = placeShape(c.pc, sh.A, 51, 62, prev), Bv = placeShape(c.pc, sh.B, 51, 62, prev);
+        const useA = o.shapes ? o.shapes[i] !== 'B' : !prev || cost(A, prev) <= cost(Bv, prev), v = useA ? A : Bv; prev = v;
+        const half = n >= 4 ? 1.5 : n / 2;
+        q.add(b, half - 0.05, above(c.pc, 36), 'L', 0.55); q.add(b + half, n - half - 0.1, v, 'L', 0.46);
+        q.chord(b, n, c.sym, (useA ? 'A' : 'B') + ' voicing', `${c.sym}: root, then the ${useA ? 'A' : 'B'} voicing ${v.map(m => pcName(m, c.pc)).join(' ')}`);
       } else {
         // walking bass: root first, chord tones in between, a half step into the next root
         const line = [nearB(c.pc, pb)];
@@ -879,50 +921,41 @@ input[type=range]{accent-color:var(--ink);width:150px}
         q.chord(b, n, c.sym, 'walk + block', `${c.sym}: bass walks ${line.map(m => pcName(m, c.pc)).join(' ')}; block chord ${blk.map(m => pcName(m, c.pc)).join(' ')}.`);
       }
     });
+    (o.mel || []).forEach(([b, m, d]) => q.add(b, d - 0.05, m, 'R', 0.62));
     return q.done(bars.length * 4);
   }
 
   // ---------- Improv lab progressions ----------
+  // example lines from the lesson sheets, in C: [beat, midi, beats]
+  const LINES = {
+    '3':[[.5,72,.5],[1,69,1],[2,67,.5],[2.5,65,.5], [4,69,.5],[4.5,72,.5],[5,69,.5],[5.5,71,.5], [8,71,.5],[8.5,69,.5],[9,67,.5],[9.5,64,2.5], [12,67,.5],[12.5,69,.5],[13,67,.5],[13.5,64,.5]],
+    '5':[[0,69,.5],[.5,65,.5],[1,67,.5],[1.5,69,.5], [4,72,.5],[4.5,69,.5],[5,76,.5],[5.5,74,.5], [8,71,.5],[8.5,74,.5],[9,72,.5],[9.5,69,.5],[10,72,.5],[10.5,71,.5],[11,69,.5],[11.5,71,.5], [12,67,4]],
+    '1':[[.5,69,.5],[1,64,.5],[1.5,67,.5],[2,65,.5],[2.5,62,.5],[3.5,65,.5], [4,69,.5],[4.5,72,.5],[5,71,.5],[5.5,69,.5],[6,67,2], [8,67,.5],[8.5,71,.5],[9,69,.5],[9.5,67,.5],[10,64,.5],[10.5,67,.5],[11,65,.5],[11.5,62,.5], [12,60,.5],[12.5,60,.5]],
+    lower:[[0,65,.5],[.5,64,.5],[1,60,.5],[1.5,61,.5],[2,62,.5],[2.5,64,.5],[3,65,.5],[3.5,69,.5], [4,67,.5],[4.5,72,.5],[5,69,.5],[5.5,70,.5],[6,71,.5],[6.5,69,.5],[7,67,.5],[7.5,65,.5], [8,64,.5],[8.5,65,.5],[9,66,.5],[9.5,67,.5],[10,64,.5],[10.5,59,.5],[11,62,.5],[11.5,60,.5]],
+    upper:[[0,76,.5],[.5,69,.5],[1,76,.5],[1.5,75,.5],[2,74,.5],[2.5,69,.5],[3,72,.5],[3.5,74,.5], [4,71,.5],[4.5,67,.5],[5,69,.5],[5.5,68,.5],[6,67,.5],[6.5,65,.5],[7,62,.5],[7.5,67,.5], [8.5,64,.5],[9,69,.5],[9.5,68,.5],[10,67,.5],[10.5,64,.5],[11,74,.5],[11.5,73,.5], [12,72,4]],
+    both:[[0,72,.5],[.5,73,.5],[1,76,.5],[1.5,75,.5],[2,74,.5],[2.5,69,.5],[3,72,.5],[3.5,74,.5], [4,71,.5],[4.5,67,.5],[5,66,.5],[5.5,68,.5],[6,67,.5],[6.5,65,.5],[7,62,.5],[7.5,67,.5], [8.5,64,.5],[9,67,1/3],[9+1/3,71,1/3],[9+2/3,74,1/3],[10,72,.5],[10.5,71,.5],[11,69,.5],[11.5,68,.5], [12,67,.5],[12.5,68,.5],[13,66,.5],[13.5,67,2.5]],
+    down:[[.5,76,.5],[1,79,.5],[1.5,76,.5],[2,77,.5],[2.5,76,.5],[3,74,.5],[3.5,72,.5], [4,73,.5],[4.5,76,.5],[5,74,.5],[5.5,71,.5],[6,70,.5],[6.5,68,.5],[7,67,.5],[7.5,65,.5], [8,64,.5],[8.5,66,.5],[9,69,.5],[9.5,66,.5],[10,67,.5],[10.5,69,.5],[11,74,.5],[11.5,72,.5], [12,73,.5],[12.5,75,.25],[12.75,73,.25],[13,72,.5],[13.5,70,.5],[14,69,.5],[14.5,67,.5],[15,66,.5],[15.5,67,.5]]
+  };
   function improvData(key, lvl, o){
     const q = seq(), names = spell7(key, SC.ionian);
     const prog = lvl === 'a'
       ? [[2,'m7','dorian','Dorian'], [7,'7','domdim','dominant diminished'], [0,'maj7','lydian','Lydian'], [9,'7','domdim','dominant diminished']]
       : [[2,'m7','ionian'], [7,'7','ionian'], [0,'maj7','ionian'], [0,'maj7','ionian']];
     const tIdx = {'3':1, '5':2, '1':0}[o.target || '3'];
-    let prevShell = null;
+    // the backing from the sheets, in C: two-note shells held for the bar; at the advanced level, stride with rootless voicings
+    const SHELLS = [[50,53], [43,53], [48,52], [48,52]];
+    const STRIDE = [[38, [53,57,60,64]], [43, [53,57,59,64]], [36, [52,55,59,62]], [45, [55,59,61,66]]];
     prog.forEach(([off, cq, sc, scName], i) => {
       const r = mod12(key + off), b = i * 4, iv = QUAL[cq].iv, S = SC[sc];
       const sym = names[[0,2,4,5,7,9,11].indexOf(off)] + QUAL[cq].s;
       const scaleRoot = lvl === 'a' ? r : key;
       const info = {sym, root:r, tones:iv.map(x => mod12(r + x)), scale:S.map(x => mod12(scaleRoot + x)), scaleName:lvl === 'a' ? `${pcName(r, key)} ${scName}` : `the ${names[0]} major scale`, target:mod12(r + iv[tIdx])};
-      // backing: two-feel bass and a 3rd/7th shell in the Charleston rhythm
-      q.add(b, 1.9, above(r, 36), 'B', 0.6); q.add(b + 2, 1.9, above(mod12(r + 7), 36), 'B', 0.5);
-      const shell = leadRot([mod12(r + iv[1]), mod12(r + iv[3])], prevShell, 50, 60); prevShell = shell;
-      q.add(b, 0.7, shell, 'L', 0.32); q.add(b + 1.5, 2.3, shell, 'L', 0.28);
-      if (o.example) improvExample(q, b, info, lvl, key, i);
+      if (lvl === 'a'){ q.add(b, 1.45, STRIDE[i][0], 'L', 0.5); q.add(b + 1.5, 2.4, STRIDE[i][1], 'L', 0.32); }
+      else q.add(b, 3.9, SHELLS[i], 'L', 0.36);
       q.chord(b, 4, sym, null, ''); q.chords[q.chords.length - 1].info = info;
     });
-    return q.done(16);
-  }
-  // example lines: what a phrase at each level could sound like
-  function improvExample(q, b, c, lvl, key, i){
-    const near = (pc, around) => above(pc, around - 6);
-    if (lvl === 'b'){
-      // walk down (or up) the key's scale for four notes and land on the target
-      const S = SC.ionian, tgt = near(c.target, 70), idx = S.map(x => mod12(key + x)).indexOf(c.target), root = tgt - S[idx], dir = i % 2 ? -1 : 1;
-      [4,3,2,1].forEach((s, j) => q.add(b + j*0.5, 0.48, root + deg(S, idx + dir * s), 'R', 0.62));
-      q.add(b + 2, 1.4, tgt, 'R', 0.66);
-    } else if (lvl === 'i'){
-      const t3 = near(c.tones[1], 70), t5 = above(c.tones[2], t3 + 1), t1 = near(c.tones[0], 68);
-      const pat = i % 2 ? [[t3 + 2, .5], [t3 + 1, .5], [t3, 1], [t5 - 1, .5], [t5, 1.4]] : [[t1 + 2, .5], [t3 - 1, .5], [t3, 1], [t5 + 1, .5], [t5 - 1, .5], [t5, .9]];
-      let x = 0; pat.forEach(([m, d]) => { q.add(b + x, d - 0.02, m, 'R', 0.62); x += d; });
-    } else {
-      const sc = c.scale, start = near(sc[(i * 3) % sc.length], 78), notes = [];
-      let m = start;
-      for (let j = 0; j < 7; j++){ notes.push(m); let n = m - 1; while (!sc.includes(mod12(n))) n--; if (i % 2){ n = m + 1; while (!sc.includes(mod12(n))) n++; } m = n; }
-      notes.forEach((n, j) => q.add(b + j*0.5, 0.48, i % 2 ? n - 12 : n, 'R', j % 2 ? 0.5 : 0.64));
-      q.add(b + 3.5, 0.5, above(c.tones[1], 64), 'R', 0.62);
-    }
+    if (o.example) LINES[lvl === 'b' ? o.target || '3' : lvl === 'i' ? o.line || 'lower' : 'down'].forEach(([b, m, d]) => q.add(b, d - 0.02, m, 'R', 0.62));
+    return moved(q, 16, nearShift(key, 0));
   }
 
   // ---------- Tasks ----------
@@ -937,53 +970,50 @@ input[type=range]{accent-color:var(--ink);width:150px}
   const TASKS = [
     {id:'scales-b', p:'scales', l:'b', kind:'ex', build:B.scalesB, goal:80, swing:'on', title:'Major and minor scales, with their chords',
       opts:[['mode','Scale',[['major','Major'],['minor','Natural minor']]]],
-      html:`<p>Don't just run the scale up and down. Your right hand plays the scale <span class="term">swung</span>, while your left hand plays the chord built on each note of the scale (the key's <span class="term">diatonic chords</span>) in the <span class="term">Charleston rhythm</span>: a short chord on beat 1 and a held one on the "and" of beat 2. You learn the notes, the fingering, every chord in the key and the most important jazz rhythm all at once.</p>
-        <p>The <b>natural minor</b> scale is the major scale with the 3rd, 6th and 7th lowered. Do the same exercise with its chords. Each month, practise the major and minor scale on the same root.</p>`,
-      note:'The example is a simplified version of the exercise in the video: one bar per chord, with a short run from its root.'},
+      html:`<p>Don't just run the scale up and down. Your right hand plays the scale <span class="term">swung</span>, an octave up in one bar and back down in the next. Meanwhile your left hand climbs through the chord built on each note of the scale (the key's <span class="term">diatonic chords</span>), two a bar, in the <span class="term">Charleston rhythm</span>: a short chord on beat 1, then the next chord early, on the "and" of beat 2, held. Four bars up to the top chord, four bars back down. You learn the notes, the fingering, every chord in the key and the most important jazz rhythm all at once.</p>
+        <p>Fingering for the right hand going up is 1 2 3 1 2 3 4 5, and coming down 4 3 2 1 3 2 1 2. The <b>natural minor</b> scale is the major scale with the 3rd, 6th and 7th lowered. Do the same exercise with its chords. Each month, practise the major and minor scale on the same root.</p>`},
     {id:'scales-i', p:'scales', l:'i', kind:'ex', build:B.scalesI, goal:100, swing:'on', title:'The seven modes, one note at a time',
       html:`<p>Each kind of chord has a scale that fits it, called a <span class="term">mode</span>: Dorian over a minor 7th chord, Mixolydian over a dominant 7th. You can find the modes by starting the major scale on each of its notes (D Dorian, E Phrygian…), but it's more useful to hear each one as the major scale with a few notes changed.</p>
-        <p>This exercise stays on one root and changes one note at a time: Ionian up, lower the 7th for Mixolydian coming down, then lower the 3rd for Dorian, the 6th for Aeolian, the 2nd for Phrygian and the 5th for Locrian, and finish with the raised 4th of Lydian, up and back down. Your left hand holds the 7th chord that matches each mode.</p>`,
+        <p>This exercise stays on one root and changes one note at a time: Ionian up, lower the 7th for Mixolydian coming down, then lower the 3rd for Dorian, the 6th for Aeolian, the 2nd for Phrygian and the 5th for Locrian, and finish with the raised 4th of Lydian, up and back down. Your left hand plays the matching 7th chord in root position, in the Charleston rhythm.</p>`,
       note:'Assumes you already know your major and minor scales. If not, start with the beginner exercise.'},
     {id:'scales-a', p:'scales', l:'a', kind:'ex', build:B.scalesA, goal:110, swing:'on', keyLabel:'Dominant', keyName:k => `${KEY_NAMES[k]}7 → ${KEY_NAMES[mod12(k + 5)]}`, title:'Altered scales over the dominant chord',
       html:`<p>Three scales give the tense, colourful sound jazz pianists play over a dominant 7th chord:</p>
         <ul><li><b>Whole tone</b>: all whole steps.</li><li><b>Dominant diminished</b>: half step, whole step, over and over.</li><li><b>Altered</b>: like the dominant diminished, but with a ♭13 near the top.</li></ul>
-        <p>Play each scale up over the dominant chord, then resolve to the major chord a 4th higher with the same short line every time. Month one is C7 to F; next month, F7 to B♭.</p>`},
+        <p>Play each scale up from the root over the dominant 7th chord (root, 3rd and 7th in your left hand), then resolve to the major chord a 4th higher with the same line every time: up from its 3rd and back to its root. Month one is C7 to F; next month, F7 to B♭.</p>`},
     {id:'chords-b', p:'chords', l:'b', kind:'ex', build:B.chordsB, goal:90, swing:'on', title:'Major and minor triads in every inversion',
       opts:[['mode','Chord',[['major','Major'],['minor','Minor']]]],
       html:`<p>Every jazzy chord grows out of major and minor triads, so you need all 12 of each in every <span class="term">inversion</span>: root position, 1st inversion (3rd at the bottom) and 2nd inversion (5th at the bottom).</p>
-        <p>Instead of blocking them out one after another, break each inversion up and swing it in your right hand, over the Charleston rhythm in your left. Go up through the inversions and back down, then do the same in minor.</p>`},
+        <p>Your left hand climbs through the inversions in the Charleston rhythm, two a bar (root position, 1st, 2nd, root position an octave up), then comes back down. Your right hand breaks the same chord up and swings it. Then do the same in minor.</p>`},
     {id:'chords-i', p:'chords', l:'i', kind:'ex', build:B.chordsI, goal:o => o.ex === 'diatonic' ? 150 : 100, swing:'off', title:'Seventh chords',
       opts:[['ex','Exercise',[['cycle','Inverted 7ths (months 1–5)'],['diatonic','Diatonic 7ths (months 6–11)']]], ['q','Chord type',[['maj7','maj7'],['7','7'],['m7','m7'],['m7b5','m7♭5'],['dim7','°7']], o => o.ex === 'cycle']],
       months:'sevenths',
       html:`<p>Almost every jazz standard is built from <span class="term">seventh chords</span>, and five types cover nearly all of them: major 7, dominant 7, minor 7, half-diminished (m7♭5) and diminished 7.</p>
-        <ul><li><b>Months 1–5, inverted 7ths:</b> one chord type a month. Start on C and move down a 5th each time, all the way around the circle of fifths, using the inversion closest to the last chord. Goal: 100 BPM.</li>
-        <li><b>Months 6–11, diatonic 7ths:</b> play the seven 7th chords of a key up the scale, broken into triplets in your right hand, with the Charleston rhythm in your left. Two keys a month. Goal: 150 BPM.</li>
+        <ul><li><b>Months 1–5, inverted 7ths:</b> one chord type a month. Start on C and move down a 5th each time, all the way around the circle of fifths, with both hands playing the chord in the Charleston rhythm. Take turns between root position and 2nd inversion, so the bottom note only moves down a whole step every two chords. Goal: 100 BPM.</li>
+        <li><b>Months 6–11, diatonic 7ths:</b> play the 7th chords of a key up the scale and back down, two a bar. Your right hand breaks each one into triplets (1–3–5, then 7–5–3) and your left hand plays it in root position, in the Charleston rhythm. Two keys a month. Goal: 150 BPM.</li>
         <li><b>Month 12:</b> review both exercises.</li></ul>`},
     {id:'chords-a', p:'chords', l:'a', kind:'ex', build:B.chordsA, goal:75, swing:'off', title:'Extensions and alterations on the ii–V–I',
       html:`<p><span class="term">Extensions</span> and <span class="term">alterations</span> are the notes you add to a 7th chord to make it sound rich. The rules are short:</p>
         <ul><li>Major 7 and minor 7 chords take the <b>9, 11 and 13</b>. Major 7 chords usually leave out the 11, and minor 7 chords the 13.</li><li>Dominant 7 chords take the alterations <b>♭9, ♯9, ♯11 and ♭13</b>.</li></ul>
-        <p>Practise them on the most common jazz progression, the <span class="term">ii–V–I</span>, adding every extension that fits each chord. Then play it twice more, starting higher each time, to find new inversions.</p>`,
-      note:'The example uses ♭9, ♯9 and ♭13 on the V chord. Try adding the ♯11 yourself.'},
+        <p>Practise them on the most common jazz progression, the <span class="term">ii–V–I</span>: a minor 11 chord, two altered dominants (♭13 with ♯9, then ♯11 with ♭9) and a major 13. Play it three times, with the top note (the melody) of the ii chord on its 11th, then its 7th, then its 9th. The lesson sheet is in F; month one here starts in C.</p>`},
     {id:'voicings-b', p:'voicings', l:'b', kind:'ex', build:B.voicingsB, goal:150, swing:'off', title:'Chord shells',
       html:`<p>A <span class="term">chord shell</span> is a 7th chord with a note or two left out, usually the 5th. The root, 3rd and 7th that are left still tell you exactly what the chord is, and they're easy to play.</p>
-        <ul><li><b>Closed shell</b>: root and 3rd in your left hand, the 7th in your right. Everything fits inside an octave.</li><li><b>Open shell</b>: root in your left hand, the 7th with the 3rd above it in your right. The outer notes are more than an octave apart, which sounds wide and warm.</li></ul>
-        <p>Play a ii–V–I with closed shells, then with open ones.</p>`},
+        <ul><li><b>Closed shell</b>: root, 3rd and 7th, all inside an octave.</li><li><b>Open shell</b>: root, 7th, then the 3rd an octave up. The outer notes are more than an octave apart, which sounds wide and warm.</li></ul>
+        <p>Play a ii–V–I two ways. First with two notes in your left hand, the root and whichever of the 3rd or 7th is closer, and the other one in your right hand. Then with just the root in your left hand and the 3rd and 7th in your right. Either way the 3rds and 7ths barely move from chord to chord.</p>`},
     {id:'voicings-i', p:'voicings', l:'i', kind:'ex', build:B.voicingsI, goal:140, swing:'off', title:'Rootless voicings',
-      opts:[['ex','Exercise',[['comp','A and B voicings'],['scale','Voicings under the scale']]], ['bass','Bass note',[['on','On'],['off','Off']]]],
+      opts:[['ex','Exercise',[['comp','A and B voicings'],['scale','Voicings under the scale']]], ['bass','Root in the left hand',[['on','On'],['off','Off']], o => o.ex === 'comp']],
       html:`<p><span class="term">Rootless voicings</span> are the rich, crunchy chords jazz pianists comp with. They leave out the root (the bass player has it) and add the 9th. Every chord has two shapes:</p>
         <ul><li><b>A voicing</b>: 3, 5, 7, 9 from the bottom.</li><li><b>B voicing</b>: 7, 9, 3, 5, with the 7th at the bottom.</li><li>On a <b>dominant</b> chord, swap the 5th for the 13th. That turns C7 into C13.</li></ul>
-        <p>Alternating A and B through a ii–V–I keeps your hand in one place. Practise it starting on an A voicing and starting on a B voicing. Then play the voicings in your left hand while your right hand plays the scale up and back down.</p>`,
-      note:'The right hand plays the scale in quarter notes. Move to 8th notes when it feels easy.'},
+        <p>Alternating A and B through a ii–V–I keeps your hand in one place. Play the voicings in your right hand over the root in your left, starting on an A voicing, then on a B voicing. Then move the voicings to your left hand while your right hand plays the scale up an octave and back down.</p>`},
     {id:'voicings-a', p:'voicings', l:'a', kind:'ex', build:B.voicingsA, goal:70, swing:'off', title:'Quartal voicings on every note of the scale',
       opts:[['q','Chord and scale',[['maj7','maj7 · major'],['m7','m7 · Dorian'],['7','7 · Mixolydian']]]],
       html:`<p><span class="term">Quartal voicings</span> are stacked mostly in 4ths instead of 3rds. They sound open and modern, and they bring extensions in for free: C major played as E–A–D–G–C is a C6/9.</p>
-        <p>Put each note of the scale on top and build a quartal chord down from it. Over a major 7th chord use the major scale, over a minor 7th the Dorian, and over a dominant 7th the Mixolydian. Do all three each month.</p>`,
-      note:'Where a plain 4th would clash, the chord uses an augmented 4th or a 3rd instead. On a major chord, the 4th of the scale is played as a ii minor 11 shape, as in the video.'},
+        <p>Put each note of the scale on top, from the root up to the octave, with two notes in your left hand and three in your right. Over a major 7th chord use the major scale, over a minor 7th the Dorian, and over a dominant 7th the Mixolydian. Do all three each month.</p>`,
+      note:'Not every interval can be a 4th: some voicings have a 3rd in them, and the dominant ones keep a tritone (3rd and 7th) at the bottom. The example plays the voicings from the lesson sheet.'},
     {id:'leadsheets-b', p:'leadsheets', l:'b', kind:'lead', months:'tunes', title:'Melody over chord shells',
-      html:`<p>To start, play the melody in your right hand and put an open shell under it: the root in your left hand, with the 7th and 3rd spread out underneath the melody. Leaving out the 5th keeps it light.</p>
-        <p>Learn one tune a month from a fake book: first the plain chords, then the shells. Hear the shells on a progression below, then add the melody yourself.</p>`},
+      html:`<p>To start, play the melody in your right hand and put chord shells under it. Your left hand plays the root plus the 3rd or the 7th (whichever keeps it close to the last chord), and your right hand adds the other one just under the melody, in the Charleston rhythm. Leaving out the 5th keeps it light.</p>
+        <p>Learn one tune a month from a fake book: first the plain chords, then the shells. The tool starts on the lesson's own example, After You've Gone, with its melody. Turn the melody off and play it yourself, then try other progressions.</p>`},
     {id:'leadsheets-i', p:'leadsheets', l:'i', kind:'lead', months:'tunes', title:'Rootless voicings on tunes',
-      html:`<p>Same idea, richer chords. Play the melody in your right hand and comp with A and B rootless voicings in your left, choosing whichever shape keeps your hand close to where it was. The tool below picks them for you on any progression.</p>
+      html:`<p>Same idea, richer chords, in a <span class="term">stride</span> style: your left hand plays the root low on beat 1, then jumps up to an A or B rootless voicing on the "and" of 2. Your right hand plays the melody. The tool picks the shape that keeps your hand closest to the last chord, on any progression.</p>
         <p>One new tune each month, from a fake book.</p>`},
     {id:'leadsheets-a', p:'leadsheets', l:'a', kind:'lead', months:'tunes', title:'Walking bass and block chords',
       html:`<p>Your left hand <span class="term">walks a bass line</span>: a note on every beat, starting on the root and stepping into the next chord with a half-step approach. Your right hand plays <span class="term">block chords</span>: four or five notes harmonizing the melody, all within an octave.</p>
@@ -1284,7 +1314,7 @@ input[type=range]{accent-color:var(--ink);width:150px}
 
   // ---------- Tool: lead-sheet lab ----------
   function leadTool(t, host){
-    const tool = el('div', 'tool'), o = {bass:'on'};
+    const tool = el('div', 'tool'), o = {};
     const ui = transportUI(t, tool, {noKey:true});
     const ctl = el('div', 'controls');
     const progSel = el('select'); progSel.setAttribute('aria-label', 'Progression');
@@ -1292,8 +1322,10 @@ input[type=range]{accent-color:var(--ink);width:150px}
     ctl.appendChild(field('Progression', progSel));
     const keySel = el('select'); keySel.setAttribute('aria-label', 'Key');
     ctl.appendChild(field('Key', keySel));
-    let bassS = null;
-    if (t.l === 'i'){ bassS = makeSeg([['on','On'],['off','Off']], 'on'); onSeg(bassS, v => { o.bass = v; refresh(); }); ctl.appendChild(field('Bass note', bassS)); }
+    // the lesson's tune comes with its melody; the advanced right hand is busy with block chords, so there it stays off
+    let melOn = t.l !== 'a';
+    const melS = makeSeg([['on','On'],['off','Off']], melOn ? 'on' : 'off'), melF = field('Melody', melS);
+    onSeg(melS, v => { melOn = v === 'on'; refresh(); }); ctl.appendChild(melF);
     tool.appendChild(ctl);
     const custom = el('input'); custom.type = 'text'; custom.value = load('hb-jazz-custom', 'Cmaj7 Am7 | Dm7 G7 | Em7 A7 | Dm7 G7');
     const cf = field('Chords (bars split by |)', custom); tool.appendChild(cf);
@@ -1309,15 +1341,17 @@ input[type=range]{accent-color:var(--ink);width:150px}
     let last = null;
     const data = () => {
       const pr = prog(), shift = mod12(+keySel.value - pr.key), bars = parseProg(pr.k === 'custom' ? custom.value : pr.s, shift, +keySel.value);
+      o.shapes = pr.shapes || null;
+      o.mel = pr.mel && melOn ? pr.mel.map(([b, m, d]) => [b, m + (shift > 6 ? shift - 12 : shift), d]) : null;
       if (bars) last = buildLead(bars, t.l, o);
       return last || buildLead(parseProg('Cmaj7', 0, 0), t.l, o);
     };
     function refresh(){
-      cf.hidden = prog().k !== 'custom';
+      cf.hidden = prog().k !== 'custom'; melF.hidden = !prog().mel;
       const pr = prog(), bars = parseProg(pr.k === 'custom' ? custom.value : pr.s, mod12(+keySel.value - pr.key), +keySel.value);
       if (!bars){ say(status, 'Some chords could not be read. Use symbols like Cmaj7, Dm7, G7, F♯m7♭5, B♭6 and split bars with |.', 'warn'); return; }
       const d = data(); strip.render(d.chords); strip.cur(-1);
-      if (!isPlaying(src)){ piano.marks(firstMarks(d, +keySel.value)); say(status, 'Press Play to hear the voicings. Then play the melody on top yourself.'); }
+      if (!isPlaying(src)){ piano.marks(firstMarks(d, +keySel.value)); say(status, o.mel ? 'Press Play to hear the lesson\'s arrangement, melody and all. Then turn the melody off and play it yourself.' : 'Press Play to hear the voicings. Then play the melody on top yourself.'); }
     }
     const src = {piano, bpm:ui.bpm, swing:ui.swing, click:ui.click, data,
       onState(on){ ui.playB.textContent = on ? '■ Stop' : '▶ Play'; ui.playB.setAttribute('aria-pressed', String(on)); if (on) piano.marks(null); else refresh(); },
@@ -1339,7 +1373,13 @@ input[type=range]{accent-color:var(--ink);width:150px}
     const ui = transportUI(t, tool, {playText:'▶ Start', noSwing:true, clickLabel:'Click', clickDef:'on'});
     const ctl = el('div', 'controls');
     const modeS = makeSeg([['you','You play'],['ex','Hear an example']], 'you');
-    onSeg(modeS, v => { o.example = v === 'ex'; reset(); }); ctl.appendChild(field('Mode', modeS));
+    let lineF = null;
+    onSeg(modeS, v => { o.example = v === 'ex'; if (lineF) lineF.hidden = !o.example; reset(); }); ctl.appendChild(field('Mode', modeS));
+    if (t.l === 'i'){
+      o.line = 'lower';
+      const ls = makeSeg([['lower','Lower neighbors'],['upper','Upper neighbors'],['both','Both (enclosures)']], 'lower');
+      onSeg(ls, v => { o.line = v; reset(); }); lineF = field('Example line', ls); lineF.hidden = true; ctl.appendChild(lineF);
+    }
     if (t.l === 'b'){ const ts = makeSeg([['3','3rds'],['5','5ths'],['1','Roots']], '3'); onSeg(ts, v => { o.target = v; reset(); show(cur); }); ctl.appendChild(field('Aim for', ts)); }
     tool.appendChild(ctl);
     const now = el('div', 'now'), nowSym = el('b', null, '—'), nowTxt = el('span', null, 'Press Start. The band plays a loop, and you solo over it.'); now.append(nowSym, nowTxt); tool.appendChild(now);
