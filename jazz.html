@@ -35,7 +35,7 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 
 /* top bar */
 .top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--paper);border-bottom:2px solid var(--ink)}
-.top-inner{max-width:1100px;margin:0 auto;padding-block:10px;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 20px}
+.top-inner{max-width:1480px;margin:0 auto;padding-block:10px;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 20px}
 .mark-name{font-family:var(--f-display);font-size:22px;line-height:1;text-decoration:none;color:var(--ink)}
 .live{display:flex;align-items:baseline;gap:8px 16px;flex-wrap:wrap;min-width:0;flex:1 1 280px}
 .live-notes{font-weight:700;font-variant-numeric:tabular-nums;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -49,8 +49,8 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 .pill[data-state="off"] .dot{background:var(--coral)}
 .dot.blink{transform:scale(1.7);background:var(--marigold)!important}
 
-main{max-width:1100px;margin:0 auto;padding-block:28px 56px}
-.hero{display:grid;gap:14px;padding-bottom:28px}
+main{max-width:1480px;margin:0 auto;padding-block:18px 40px}
+.hero{display:grid;gap:12px;padding-bottom:20px}
 .modnav{display:flex;flex-wrap:wrap;gap:8px;padding-bottom:14px;margin-bottom:4px;border-bottom:2px solid var(--ink)}
 .mod{display:flex;flex-direction:column;gap:1px;min-width:0;flex:1 1 150px;max-width:240px;padding:9px 14px;border:1.5px solid var(--ink);border-radius:10px;background:var(--sheet);color:var(--ink);text-decoration:none;line-height:1.25}
 .mod b{font-size:15px}
@@ -86,7 +86,7 @@ h1{font-family:var(--f-display);font-weight:400;font-size:clamp(36px,6vw,60px);l
 .pace h3{font-size:16px;margin:0 0 4px}
 .pace p{margin:0;font-size:15px;line-height:1.5}
 
-.lesson{display:grid;gap:18px;padding-block:32px;border-top:2px solid var(--ink);scroll-margin-top:90px}
+.lesson{display:grid;gap:14px;padding-block:22px;border-top:2px solid var(--ink);scroll-margin-top:90px}
 .lesson-head{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px}
 .num{flex:none;display:grid;place-items:center;width:46px;height:46px;border-radius:50%;background:var(--marigold);border:2px solid var(--ink);font-family:var(--f-display);font-size:22px}
 h2{font-family:var(--f-display);font-weight:400;font-size:clamp(26px,3.6vw,34px);line-height:1.1;margin:0;text-wrap:balance}
@@ -98,7 +98,7 @@ h3{font-size:20px;line-height:1.25;margin:0}
 .prose ul{margin:0 0 .8em;padding-left:1.2em}
 .prose li{margin-bottom:.3em}
 .term{font-weight:700;background:linear-gradient(transparent 62%, rgba(242,169,0,.45) 62%)}
-.task{display:grid;gap:16px}
+.task{display:grid;gap:12px}
 .task-head{display:grid;gap:8px}
 .meta{display:flex;flex-wrap:wrap;gap:6px}
 .chip{padding:3px 10px;border:1.5px solid var(--ink);border-radius:999px;font-size:13px;font-weight:600;background:var(--sheet);white-space:nowrap}
@@ -203,12 +203,31 @@ input[type=range]{accent-color:var(--ink);width:150px}
 .tick[aria-pressed="true"] .box{border-color:var(--sheet)}
 .tick[aria-pressed="true"] .box::after{content:"";position:absolute;left:4px;top:0;width:5px;height:10px;border:solid var(--leaf);border-width:0 2.5px 2.5px 0;transform:rotate(45deg)}
 .plan-acts .btn{font-size:15px;padding:5px 12px}
+/* daily practice timer */
+.session{display:grid;gap:8px;padding-top:12px;border-top:2px dashed var(--paper-2)}
+.ses-head{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px}
+.ses-head b{font-size:16px}
+.clock{font-family:var(--f-display);font-size:24px;line-height:1;font-variant-numeric:tabular-nums;min-width:74px}
+.session .btn{font-size:15px;padding:5px 12px}
+.steps{list-style:none;margin:0;padding:0;display:grid;gap:3px}
+.steps li{display:flex;gap:10px;align-items:baseline;font-size:14px;line-height:1.35;padding:3px 8px;border-radius:8px}
+.steps li b{flex:none;min-width:42px;font-variant-numeric:tabular-nums}
+.steps li.cur{background:var(--marigold)}
+.steps li.past{color:var(--ink-soft);text-decoration:line-through}
+.today button.off{border-style:dashed;color:var(--ink-soft)}
 
 .finale{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:16px;padding:22px;border:2px solid var(--ink);border-radius:14px;background:var(--marigold);box-shadow:6px 6px 0 var(--ink);margin-top:8px}
 .finale h2{font-size:28px}
 .finale p{margin:4px 0 0;max-width:56ch}
 .finale .btn{background:var(--sheet)}
 
+/* wide screens: the explanation sits next to the year tracker, the player runs full width below */
+@media (min-width:1200px){
+  .task{grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);column-gap:24px;align-items:start}
+  .task>.task-head,.task>.prose,.task>.note{grid-column:1}
+  .task>.plan{grid-column:2;grid-row:1 / 4}
+  .task>.tool{grid-column:1 / -1}
+}
 @media (max-width:820px){
   .top{position:static}
   .lesson{scroll-margin-top:12px}
@@ -258,6 +277,14 @@ input[type=range]{accent-color:var(--ink);width:150px}
           </div>
         </div>
         <p class="help" id="levelHelp"></p>
+        <div class="field"><span class="label">Time per day</span>
+          <div class="seg" id="timeSeg">
+            <button type="button" data-v="10" aria-pressed="false">10 min</button>
+            <button type="button" data-v="30" aria-pressed="true">30 min</button>
+            <button type="button" data-v="60" aria-pressed="false">1 hour</button>
+          </div>
+        </div>
+        <p class="help" id="timeHelp"></p>
         <div class="field"><span class="label">Order of keys through the year</span>
           <div class="seg" id="orderSeg">
             <button type="button" data-v="flats" aria-pressed="true">C F B♭ E♭…</button>
@@ -267,7 +294,7 @@ input[type=range]{accent-color:var(--ink);width:150px}
         </div>
         <div class="field"><span class="label">The rules</span>
           <div class="rules">
-            <span class="chip">5–10 min per exercise, every day</span>
+            <span class="chip" id="ruleTime">5–10 min per exercise, every day</span>
             <span class="chip">One key a month</span>
             <span class="chip">Pass: a month of practice + the goal tempo</span>
           </div>
@@ -286,7 +313,7 @@ input[type=range]{accent-color:var(--ink);width:150px}
       <div class="pace">
         <div>
           <h3>Every day</h3>
-          <p>About 5–10 minutes per pillar, so 25–50 minutes in all. Start at the tempo you reached last time. Play the exercise twice in a row: if both run-throughs are clean, go 4 BPM faster; if not, go 4 BPM slower and try again. Each exercise remembers your tempo.</p>
+          <p><span id="paceDay"></span> Start at the tempo you reached last time. Play the exercise twice in a row: if both run-throughs are clean, go 4 BPM faster; if not, go 4 BPM slower and try again. Each exercise remembers your tempo, and its timer walks you through the minutes.</p>
         </div>
         <div>
           <h3>Every week</h3>
@@ -987,6 +1014,24 @@ input[type=range]{accent-color:var(--ink);width:150px}
     const days = Math.floor((new Date(dayKey(new Date())) - new Date(p.start)) / 864e5);
     return Math.max(0, Math.min(3, Math.floor(days / 7)));
   }
+  // ---------- Daily time ----------
+  let dailyMin = +load('hb-jazz-time', 30); if (![10, 30, 60].includes(dailyMin)) dailyMin = 30;
+  // minutes per pillar, and how to spend them: [minutes, what to do]
+  const TIME_PLANS = {
+    10:{per:5, help:"Two pillars a day, 5 minutes each, taking turns so each one comes up every two or three days. It's slower than the video's plan, so some keys may take longer than a month.",
+      steps:[[1, 'Warm up: play it once at the tempo you reached last time'], [4, "This week's step (see the weeks above)"]]},
+    30:{per:6, help:'About 6 minutes on each of the five pillars: the 5–10 minutes the video suggests.',
+      steps:[[1, 'Warm up at the tempo you reached last time'], [4, "This week's step (see the weeks above)"], [1, 'Two run-throughs, then +4 or −4 BPM']]},
+    60:{per:12, help:'12 minutes on each pillar. The plan still moves on one key a month; the extra time goes on review, so earlier keys stay in your hands.',
+      steps:[[2, 'Warm up at the tempo you reached last time'], [6, "This week's step (see the weeks above)"], [2, 'Review: play it in an earlier key (in month 1, an octave higher)'], [2, 'Two run-throughs, then +4 or −4 BPM']]}
+  };
+  const timePlan = () => TIME_PLANS[dailyMin];
+  // with 10 minutes a day two pillars take turns; otherwise all five, every day
+  function todaysPillars(){
+    if (dailyMin !== 10) return PILLARS.slice();
+    const d = Math.floor(new Date(dayKey(new Date())) / 864e5);
+    return [PILLARS[(2 * d) % 5], PILLARS[(2 * d + 1) % 5]];
+  }
   const goalNow = t => typeof t.goal === 'function' ? t.goal(t.cur ? t.cur() : {}) : t.goal;
   const weekTempo = (t, f) => Math.max(40, Math.round(goalNow(t) * f / 2) * 2);
   // the four weeks of a month: [title, what to do, share of the goal tempo, key to use]
@@ -1061,6 +1106,45 @@ input[type=range]{accent-color:var(--ink);width:150px}
     const tTempo = tick('', 'tempo');
     const next = el('button', 'btn', 'Finish month →'); next.type = 'button'; acts.appendChild(next);
     box.appendChild(acts);
+    // today's timer: this pillar's minutes, split into steps; finishing it ticks the pillar off for today
+    const ses = el('div', 'session'), sh = el('div', 'ses-head'), sTitle = el('b'), clock = el('span', 'clock');
+    const sGo = el('button', 'btn'), sReset = el('button', 'btn ghost', 'Reset'); sGo.type = sReset.type = 'button';
+    const sList = el('ol', 'steps'), sNote = el('p', 'help');
+    sh.append(sTitle, clock, sGo, sReset); ses.append(sh, sList, sNote); box.appendChild(ses);
+    const total = () => timePlan().per * 60;
+    let left = total(), endAt = 0, iv = 0, finished = false;
+    function sRender(){
+      const tp = timePlan(), gone = total() - left, due = todaysPillars();
+      sTitle.textContent = finished ? `Today's ${tp.per} minutes · done ✓` : `Today's ${tp.per} minutes`;
+      clock.textContent = `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`;
+      sList.innerHTML = ''; let acc = 0;
+      tp.steps.forEach(([m, txt]) => {
+        const from = acc; acc += m * 60;
+        const li = el('li', finished || gone >= acc ? 'past' : iv && gone >= from ? 'cur' : null);
+        li.append(el('b', null, m + ' min'), el('span', null, t.months === 'tunes' ? txt.replace('play it in an earlier key (in month 1, an octave higher)', 'play an earlier tune (in month 1, this one with plain chords)') : txt));
+        sList.appendChild(li);
+      });
+      sGo.textContent = iv ? '❚❚ Pause' : left > 0 && left < total() ? '▶ Resume' : '▶ Start timer';
+      sNote.textContent = due.includes(t.p) ? '' : `Not on today's list (today: ${due.map(x => PILLAR_NAMES[x]).join(' and ')}). Practise it anyway if you like.`;
+      sNote.hidden = !sNote.textContent;
+    }
+    const sStop = () => { clearInterval(iv); iv = 0; };
+    function sTick(){
+      left = Math.max(0, Math.ceil((endAt - Date.now()) / 1000));
+      if (!left){
+        sStop(); finished = true; markToday(t.p);
+        if (AC && soundOn) [72, 76, 79, 84].forEach((m, i) => noteAt(m, AC.currentTime + 0.05 + i * 0.15, 0.6, 0.5, 'piano'));
+      }
+      sRender();
+    }
+    sGo.addEventListener('click', () => {
+      if (iv) sStop();
+      else { ensureAudio(); if (!left){ left = total(); finished = false; } endAt = Date.now() + left * 1000; iv = setInterval(sTick, 250); }
+      sRender();
+    });
+    sReset.addEventListener('click', () => t.resetSession());
+    t.resetSession = () => { sStop(); left = total(); finished = false; sRender(); };
+    sRender();
     next.addEventListener('click', () => {
       if (!p.done.includes(p.i)) p.done.push(p.i);
       let n = p.i; for (let k = 1; k <= 12; k++){ const c = (p.i + k) % 12; if (!p.done.includes(c)){ n = c; break; } }
@@ -1336,7 +1420,7 @@ input[type=range]{accent-color:var(--ink);width:150px}
     head.appendChild(el('h3', null, t.title));
     const meta = el('div', 'meta');
     if (t.goal) meta.appendChild(el('span', 'chip cur', typeof t.goal === 'function' ? 'Goal 100 / 150 BPM' : `Goal ${t.goal} BPM`));
-    meta.appendChild(el('span', 'chip', '5–10 min a day'));
+    meta.appendChild(el('span', 'chip tmin', '6 min a day'));
     meta.appendChild(el('span', 'chip', t.months === 'tunes' ? 'One new tune a month' : t.months === 'sevenths' ? 'One chord type, then two keys a month' : 'One key a month'));
     head.appendChild(meta);
     wrap.appendChild(head);
@@ -1380,12 +1464,17 @@ input[type=range]{accent-color:var(--ink);width:150px}
 
   // ---------- Today's practice ----------
   const DAYS = load('hb-jazz-days', {}) || {};
+  function markToday(p){
+    const today = dayKey(new Date()), cur = DAYS[today] || [];
+    if (!cur.includes(p)){ DAYS[today] = [...cur, p]; store('hb-jazz-days', DAYS); renderToday(); }
+  }
   function renderToday(){
-    const today = dayKey(new Date()), list = DAYS[today] || [];
+    const today = dayKey(new Date()), list = DAYS[today] || [], due = todaysPillars();
     $('today').innerHTML = '';
     PILLARS.forEach(p => {
-      const li = el('li'), b = el('button'); b.type = 'button'; b.setAttribute('aria-pressed', String(list.includes(p)));
-      b.innerHTML = '<span class="bx" aria-hidden="true"></span><span></span><small>5–10 min</small>'; b.children[1].textContent = PILLAR_NAMES[p];
+      const li = el('li'), b = el('button', due.includes(p) ? null : 'off'); b.type = 'button'; b.setAttribute('aria-pressed', String(list.includes(p)));
+      b.innerHTML = '<span class="bx" aria-hidden="true"></span><span></span><small></small>'; b.children[1].textContent = PILLAR_NAMES[p];
+      b.children[2].textContent = due.includes(p) ? `${timePlan().per} min` : 'not today';
       b.addEventListener('click', () => {
         const cur = DAYS[today] || []; DAYS[today] = cur.includes(p) ? cur.filter(x => x !== p) : [...cur, p];
         if (!DAYS[today].length) delete DAYS[today];
@@ -1399,9 +1488,19 @@ input[type=range]{accent-color:var(--ink);width:150px}
     if (!DAYS[dayKey(d)]) d.setDate(d.getDate() - 1);
     while (DAYS[dayKey(d)]){ streak++; d.setDate(d.getDate() - 1); }
     const total = Object.keys(DAYS).length;
-    $('streak').textContent = list.length === 5 ? `All five done today. Streak: ${streak} day${streak === 1 ? '' : 's'}.` : total ? `Streak: ${streak} day${streak === 1 ? '' : 's'} · ${total} day${total === 1 ? '' : 's'} practised in all` : 'Tick each pillar as you practise it.';
+    $('streak').textContent = due.every(p => list.includes(p)) ? `${due.length === 5 ? 'All five' : 'Both'} done today. Streak: ${streak} day${streak === 1 ? '' : 's'}.` : total ? `Streak: ${streak} day${streak === 1 ? '' : 's'} · ${total} day${total === 1 ? '' : 's'} practised in all` : 'Tick each pillar as you practise it.';
   }
-  renderToday();
+  function applyTime(){
+    const tp = timePlan();
+    setSeg($('timeSeg'), dailyMin); $('timeHelp').textContent = tp.help;
+    $('ruleTime').textContent = dailyMin === 10 ? '2 pillars a day, 5 min each' : `${tp.per} min per exercise, every day`;
+    $('paceDay').textContent = {10:'Two pillars a day, 5 minutes each, taking turns.', 30:'About 6 minutes per pillar, so 30 minutes in all.', 60:'12 minutes per pillar, an hour in all, with the extra time spent on review.'}[dailyMin];
+    document.querySelectorAll('.tmin').forEach(c => c.textContent = `${tp.per} min a day`);
+    TASKS.forEach(t => t.resetSession && t.resetSession());
+    renderToday();
+  }
+  onSeg($('timeSeg'), v => { dailyMin = +v; store('hb-jazz-time', dailyMin); applyTime(); });
+  applyTime();
 
   // ---------- Input ----------
   const heldCount = new Map();
